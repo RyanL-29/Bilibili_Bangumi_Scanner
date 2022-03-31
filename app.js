@@ -16,6 +16,15 @@ yargs(hideBin(process.argv))
     type: 'integer',
     description: 'to MD (Required. No Default)'
 })
+.option('r', {
+    type: 'integer',
+    description: '-1: inifinite loop, If > 1 than n+1 times'
+})
+.option('interval', {
+    type: 'integer',
+    description: 'minutes default 5 min'
+})
+
 .epilog('Bilibili_Bangumi_Scanner || Project ANi')
 .parse()
 
@@ -23,7 +32,9 @@ const argv = yargs(hideBin(process.argv)).argv
 
 let fromMD = argv.f || null
 let toMD = argv.t || null
-
+let loop = argv.r || 0
+let interval = argv.interval || 3
+interval = interval * 60000 
 if (!toMD) {
     logger.LogError("Please provide to MD with arg --t <integer> !!")
     process.exit(0);
@@ -64,23 +75,42 @@ const grabList = (id, callback) => {
     })
 }
 
-
-const set = []
-read.readCheckLastScan((err, cb) => {
-    logger.LogInfo(`Resume Last Check: ${cb.media_id}`)
-    for (let step = fromMD || parseInt(cb.media_id); step <= toMD; step++) {
-        set.push((callback) => {
-            grabList(step, (err , cb) => {
-                callback(null)
+const checkList = () => {  
+    read.readCheckLastScan((err, cb) => {
+        const set = []
+        logger.LogInfo(`Resume Last Check: ${cb.media_id}`)
+        for (let step = fromMD || parseInt(cb.media_id); step <= toMD; step++) {
+            set.push((callback) => {
+                grabList(step, (err , cb) => {
+                    callback(null)
+                })
             })
-        })
-    }
-
-    async.parallelLimit(set, 50, (err, result) => {
-        if (err) {
-          console.error("err")
-        } else {
-          logger.LogInfo(`Check Done`)
         }
+
+        async.parallelLimit(set, 50, (err, result) => {
+            if (err) {
+            console.error("err")
+            } else {
+            logger.LogInfo(`Check Done`)
+            }
+        })
     })
-})
+}
+
+checkList();
+
+setTimeout(() => {
+    if (loop < 0) {
+        setInterval(() => {
+            checkList()
+        }, interval)
+    } else {
+        const worker = setInterval(() => {
+            if (interval <= 0) {
+                clearInterval(worker)
+            }
+                checkList()
+                loop--;
+        }, interval)
+    }
+}, interval)
