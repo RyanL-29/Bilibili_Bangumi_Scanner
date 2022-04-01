@@ -11,10 +11,14 @@ const discordWebhook = ""
 class sqliteStore {
     constructor(){}
 
-    sendToDiscord(content) {        
-        axios.post(discordWebhook, {
-            content: content
-        })
+    sendToDiscord(content) {  
+        if (discordWebhook) {
+            axios.post(discordWebhook, {
+                content: content
+            }).catch(err =>{
+                logger.LogError(err)
+            })
+        }
     }
 
     InsertRecord(info, callback) {
