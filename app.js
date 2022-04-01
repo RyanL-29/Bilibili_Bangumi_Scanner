@@ -1,5 +1,5 @@
 const async = require('async'),
-yargs = require('yargs'),
+yargs = require('yargs/yargs'),
 { hideBin } = require('yargs/helpers'),
 rp = require('request-promise');
 
@@ -7,33 +7,48 @@ const logger = require('./utility/log'),
 store = require('./model/store.model'),
 read = require('./model/read.model');
 
-yargs(hideBin(process.argv))
-.option('f', {
-    type: 'integer',
+
+
+const argv = yargs(hideBin(process.argv))
+.usage('Usage: node app.js [options]')
+.example('node app.js --f 28230000 --t 28239999 --r -1 --interval 120')
+.option('fromMD', {
+    type: 'number',
+    alias: 'f',
     description: 'from MD (Optional. Default latest DB media_id)'
 })
-.option('t', {
-    type: 'integer',
-    description: 'to MD (Required. No Default)'
+.option('toMD', {
+    type: 'number',
+    alias: 't',
+    description: 'to MD'
 })
-.option('r', {
-    type: 'integer',
+.option('recursive', {
+    type: 'number',
+    alias: 'r',
     description: '-1: inifinite loop, If > 1 than n+1 times'
 })
+.option('multithread', {
+    type: 'number',
+    // alias: 'mt',
+    description: 'parallel request limit default 50'
+})
 .option('interval', {
-    type: 'integer',
+    type: 'number',
+    // alias: 'intv',
     description: 'minutes default 5 min'
 })
-
 .epilog('Bilibili_Bangumi_Scanner || Project ANi')
-.parse()
+.demandOption(['t', 'toMD'], 'Please provide both t || toMD arguments to work with this tool')
+.help('h')
+.alias('h', 'help')
+.argv
 
-const argv = yargs(hideBin(process.argv)).argv
-
-let fromMD = argv.f || null
-let toMD = argv.t || null
-let loop = argv.r || 0
+let fromMD = argv.f || argv.fromMD || null
+let toMD = argv.t || argv.toMD || null
+let loop = argv.r || argv.recursive || 0
 let interval = argv.interval || 3
+let multithread = argv.mt || argv.multithread || 50
+
 interval = interval * 60000 
 if (!toMD) {
     logger.LogError("Please provide to MD with arg --t <integer> !!")
@@ -87,7 +102,7 @@ const checkList = () => {
             })
         }
 
-        async.parallelLimit(set, 50, (err, result) => {
+        async.parallelLimit(set, multithread,(err, result) => {
             if (err) {
             console.error("err")
             } else {
